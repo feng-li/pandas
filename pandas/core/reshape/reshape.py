@@ -754,9 +754,9 @@ def get_dummies(
     sparse : bool, default False
         Whether the dummy-encoded columns should be backed by
         a :class:`SparseArray` (True) or a regular NumPy array (False).
-    drop_first : bool, default False
+    drop_first : bool or int, default False
         Whether to get k-1 dummies out of k categorical levels by removing the
-        first level.
+        h-th level. If bool, h = 1.
     dtype : dtype, default np.uint8
         Data type for new columns. Only a single dtype is allowed.
 
@@ -944,7 +944,7 @@ def _get_dummies_1d(
         levels = np.append(levels, np.nan)
 
     # if dummy_na, we just fake a nan level. drop_first will drop it again
-    if drop_first and len(levels) == 1:
+    if int(drop_first)>0 and len(levels) == 1:
         return get_empty_frame(data)
 
     number_of_cols = len(levels)
@@ -980,11 +980,11 @@ def _get_dummies_1d(
         for ndx, code in zip(n_idx, codes):
             sp_indices[code].append(ndx)
 
-        if drop_first:
+        if int(drop_first)>0:
             # remove first categorical level to avoid perfect collinearity
             # GH12042
-            sp_indices = sp_indices[1:]
-            dummy_cols = dummy_cols[1:]
+            sp_indices = sp_indices[int(drop_first)-1:] + sp_indices[int(drop_first):]
+            dummy_cols = dummy_cols[int(drop_first)-1:] + dummy_cols[int(drop_first):] 
         for col, ixs in zip(dummy_cols, sp_indices):
             sarr = SparseArray(
                 np.ones(len(ixs), dtype=dtype),
@@ -1004,10 +1004,10 @@ def _get_dummies_1d(
             # reset NaN GH4446
             dummy_mat[codes == -1] = 0
 
-        if drop_first:
+        if int(drop_first)>0:
             # remove first GH12042
-            dummy_mat = dummy_mat[:, 1:]
-            dummy_cols = dummy_cols[1:]
+            dummy_mat = np.delete(dummy_mat,int(drop_first)-1, 1)
+            dummy_cols = dummy_cols[int(drop_first)-1:] + dummy_cols[int(drop_first):] 
         return DataFrame(dummy_mat, index=index, columns=dummy_cols)
 
 
